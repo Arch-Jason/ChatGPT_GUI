@@ -4,6 +4,7 @@ import Navbar from 'react-bootstrap/Navbar';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import { SettingsPop } from "./settings";
 import { SelectModel } from "./selectModel";
+import Button from 'react-bootstrap/Button';
 
 const moment = require("moment")
 
@@ -30,7 +31,7 @@ export function Sidebar({ setCurrentModel, currentModel, models, currentURL, cur
                                 History
                             </Offcanvas.Title>
                         </Offcanvas.Header>
-                        <button
+                        <Button
                             id={"newChat"}
                             onClick={() => {
                                 let time = Date.now().toString();
@@ -38,26 +39,27 @@ export function Sidebar({ setCurrentModel, currentModel, models, currentURL, cur
                             }}
                         >
                             New
-                        </button>
+                        </Button>
 
-                        <button
-                            id={"newChat"}
+                        <Button
+                            id={"delChat"}
                             onClick={handleDelete}
                         >
                             Delete All Chats
-                        </button>
+                        </Button>
                         {
                             Object.keys(messages).map((time) => {
                                 const firstMessage = messages[time][0]?.content || "Empty Chat";
                                 return (
-                                    <button
+                                    <Button
+                                        className={"historyButtons"}
                                         id={time}
                                         key={time}
                                         onClick={() => chatChange(time)}
                                     >
                                         <div>{firstMessage.slice(0, 10)}</div>
                                         <div>{moment(Number(time)).format("MM-DD HH:mm")}</div>
-                                    </button>
+                                    </Button>
                                 );
                             })
                         }

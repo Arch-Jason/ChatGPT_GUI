@@ -138,3 +138,38 @@ code {
   width: 100%; /* Ensure buttons stretch across container */
   align-items: flex-start; /* Align buttons to the left */
 }
+
+#newChat {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-color: lightgrey;
+}
+
+#newChat:hover {
+  background-color: #0d6efdAA;
+}
+
+#delChat {
+  border-radius: 0;
+  border: none;
+}
+
+#delChat:hover {
+  background-color: #0d6efdAA;
+}
+
+.historyButtons {
+  display: flex !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-color: lightgrey !important;
+  padding: 1em !important;
+  background-color: #0d6efdAA !important;
+  justify-content: space-between !important;
+}
+
+.historyButtons:hover {
+  background-color: #0d6efd !important;
+}

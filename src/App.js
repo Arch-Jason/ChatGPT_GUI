@@ -81,12 +81,7 @@ function App() {
 
     let currentChat = getCurrentChat();
 
-    const handleChatChange = (chat) => {
-        console.log(chat);
-        if (!messages[chat])
-            setMessages({ ...messages, [chat]: [] });
-        currentChat = chat;
-
+    const renderChatboxRoot = (messages, currentChat) => {
         const chatboxRoot = ReactDOM.createRoot(document.getElementById("chatbox"));
         chatboxRoot.render(
             messages[currentChat]?.map((message, index) => (
@@ -112,7 +107,17 @@ function App() {
                     </Markdown>
                 </div>
             ))
-        )
+        );
+    };
+
+    setTimeout(() => renderChatboxRoot(messages, currentChat), 500);
+
+    const handleChatChange = (chat) => {
+        console.log(chat);
+        if (!messages[chat])
+            setMessages({ ...messages, [chat]: [] });
+        currentChat = chat;
+        renderChatboxRoot(messages, currentChat);
     };
 
     const deleteChats = () => {
