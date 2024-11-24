@@ -15,6 +15,7 @@ import { solarizedlight } from 'react-syntax-highlighter/dist/esm/styles/prism/'
 import CopyToClipboard from 'react-copy-to-clipboard';
 import copy from 'copy-to-clipboard';
 import Cookies from "js-cookie";
+import ReactDOM from "react-dom/client";
 
 const CodeBlock = {
     code({node, inline, className, children, ...props}) {
@@ -78,7 +79,46 @@ function App() {
         }
     };
 
-    const currentChat = getCurrentChat();
+    let currentChat = getCurrentChat();
+
+    const handleChatChange = (chat) => {
+        console.log(chat);
+        if (!messages[chat])
+            setMessages({ ...messages, [chat]: [] });
+        currentChat = chat;
+
+        const chatboxRoot = ReactDOM.createRoot(document.getElementById("chatbox"));
+        chatboxRoot.render(
+            messages[currentChat]?.map((message, index) => (
+                <div className="message" id={message.role} key={`${message.role}-${index}`}>
+                    <Markdown
+                        remarkPlugins={[remarkMath, remarkGfm]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                            code: CodeBlock.code,
+                            math: ({ value }) => (
+                                <div className="katex-block">
+                                    <BlockMath>{value}</BlockMath>
+                                </div>
+                            ),
+                            inlineMath: ({ value }) => (
+                                <span className="katex-inline">
+                                  <InlineMath>{value}</InlineMath>
+                                </span>
+                            )
+                        }}
+                    >
+                        {message.content}
+                    </Markdown>
+                </div>
+            ))
+        )
+    };
+
+    const deleteChats = () => {
+        localStorage.removeItem('messages');
+    }
+
 
     const sendMessage = async () => {
         setCurrentMessage(processMessages(currentMessage));
@@ -150,10 +190,6 @@ function App() {
         setPreURL(preURL);
     };
 
-    const handleChatChange = (chat) => {
-        // Update currentChat dynamically
-    };
-
     const processMessages = (unsafe) => {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -178,32 +214,11 @@ function App() {
                 onSave={handleSettingChange}
                 messages={messages}
                 chatChange={handleChatChange}
+                handleSettingChange={deleteChats}
             />
 
             <div className="chatbox" id="chatbox">
-                {messages[currentChat]?.map((message, index) => (
-                    <div className="message" id={message.role} key={`${message.role}-${index}`}>
-                        <Markdown
-                            remarkPlugins={[remarkMath, remarkGfm]}
-                            rehypePlugins={[rehypeKatex]}
-                            components={{
-                                code: CodeBlock.code,
-                                math: ({ value }) => (
-                                    <div className="katex-block">
-                                        <BlockMath>{value}</BlockMath>
-                                    </div>
-                                ),
-                                inlineMath: ({ value }) => (
-                                    <span className="katex-inline">
-                                      <InlineMath>{value}</InlineMath>
-                                    </span>
-                                )
-                            }}
-                        >
-                            {message.content}
-                        </Markdown>
-                    </div>
-                ))}
+
             </div>
 
             <div className="inputBox">

@@ -5,7 +5,9 @@ import Offcanvas from 'react-bootstrap/Offcanvas';
 import { SettingsPop } from "./settings";
 import { SelectModel } from "./selectModel";
 
-export function Sidebar({ setCurrentModel, currentModel, models, currentURL, currentAPI, onSave, messages, chatChange }) {
+const moment = require("moment")
+
+export function Sidebar({ setCurrentModel, currentModel, models, currentURL, currentAPI, onSave, messages, chatChange, handleDelete }) {
     let expand = false;
     return (
         <>
@@ -28,12 +30,24 @@ export function Sidebar({ setCurrentModel, currentModel, models, currentURL, cur
                                 History
                             </Offcanvas.Title>
                         </Offcanvas.Header>
-                        <button id={"newChat"}>
+                        <button
+                            id={"newChat"}
+                            onClick={() => {
+                                let time = Date.now().toString();
+                                chatChange(time);
+                            }}
+                        >
                             New
+                        </button>
+
+                        <button
+                            id={"newChat"}
+                            onClick={handleDelete}
+                        >
+                            Delete All Chats
                         </button>
                         {
                             Object.keys(messages).map((time) => {
-                                // Ensure messages[time] is an array and has at least one message
                                 const firstMessage = messages[time][0]?.content || "Empty Chat";
                                 return (
                                     <button
@@ -41,7 +55,8 @@ export function Sidebar({ setCurrentModel, currentModel, models, currentURL, cur
                                         key={time}
                                         onClick={() => chatChange(time)}
                                     >
-                                        {firstMessage.slice(0, 10)} {/* Show first 10 chars */}
+                                        <div>{firstMessage.slice(0, 10)}</div>
+                                        <div>{moment(Number(time)).format("MM-DD HH:mm")}</div>
                                     </button>
                                 );
                             })
