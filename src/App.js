@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
@@ -16,9 +16,11 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import copy from 'copy-to-clipboard';
 import Cookies from "js-cookie";
 import ReactDOM from "react-dom/client";
+import { debounce } from 'lodash';
+
 
 const CodeBlock = {
-    code({node, inline, className, children, ...props}) {
+    code({ node, inline, className, children, ...props }) {
         const match = /language-(\w+)/.exec(className || '');
         const text = String(children).replace(/\n$/, '');
 
@@ -36,12 +38,13 @@ const CodeBlock = {
                 </div>
             )
             : (
-                <code className={className} {...props}>{children}</code> // 确保 children 在这里被渲染
+                <code className={className} {...props}>{children}</code>
             )
     }
 }
 
 function App() {
+    const pageLoading = useRef(false);
     const [apikey, setApikey] = useState(Cookies.get('GPT_API_KEY') || "");
     const [preURL, setPreURL] = useState(Cookies.get('GPT_PRE_URL') || "");
     const [models, setModels] = useState([]);
@@ -50,6 +53,10 @@ function App() {
     const [messages, setMessages] = useState(() => {
         let storedMessages = localStorage.getItem('messages');
         return storedMessages ? JSON.parse(storedMessages) : {};
+    });
+    const [currentChat, setCurrentChat] = useState(() => {
+        const keys = Object.keys(messages);
+        return keys.length > 0 ? keys[keys.length - 1] : Date.now().toString();
     });
 
     useEffect(() => {
@@ -70,16 +77,16 @@ function App() {
         }
     }, [currentModel]);
 
-    const getCurrentChat = () => {
-        const keys = Object.keys(messages);
-        if (keys.length > 0) {
-            return keys[keys.length - 1]; // Get the last timestamp key
-        } else {
-            return Date.now().toString();
-        }
-    };
+    useEffect(() => {
+        const fetchModels = async () => {
+            setModels(await getModels(preURL, apikey));
+        };
+        fetchModels();
+    }, [apikey]);
 
-    let currentChat = getCurrentChat();
+    useEffect(() => {
+        renderChatboxRoot(messages, currentChat);
+    }, [messages, currentChat]);
 
     const renderChatboxRoot = (messages, currentChat) => {
         const chatboxRoot = ReactDOM.createRoot(document.getElementById("chatbox"));
@@ -98,7 +105,7 @@ function App() {
                             ),
                             inlineMath: ({ value }) => (
                                 <span className="katex-inline">
-                                  <InlineMath>{value}</InlineMath>
+                                    <InlineMath>{value}</InlineMath>
                                 </span>
                             )
                         }}
@@ -110,25 +117,25 @@ function App() {
         );
     };
 
-    setTimeout(() => renderChatboxRoot(messages, currentChat), 500);
-
     const handleChatChange = (chat) => {
-        console.log(chat);
-        if (!messages[chat])
-            setMessages({ ...messages, [chat]: [] });
-        currentChat = chat;
-        renderChatboxRoot(messages, currentChat);
+        setCurrentChat(chat);
+        if (!messages[chat]) {
+            setMessages((prevMessages) => ({
+                ...prevMessages,
+                [chat]: []
+            }));
+        }
     };
 
     const deleteChats = () => {
         localStorage.removeItem('messages');
+        setMessages({});
     }
-
 
     const sendMessage = async () => {
         setCurrentMessage(processMessages(currentMessage));
         if (currentMessage.trim()) {
-            const newMessage = { "role": "user", "content": currentMessage };
+            const newMessage = { role: "user", content: currentMessage };
             const updatedMessages = { ...messages };
 
             if (!updatedMessages[currentChat]) {
@@ -148,23 +155,14 @@ function App() {
             const updatedMessages = { ...messages };
             if (updatedMessages[currentChat]?.length > 0 && updatedMessages[currentChat][updatedMessages[currentChat].length - 1].role === "user") {
                 await sendMessageToModel(updatedMessages);
-                setTimeout(()=> {}, 1000);
             }
         };
         send();
-
         const chatbox = document.querySelector('#chatbox');
         if (chatbox) {
             chatbox.scrollTop = chatbox.scrollHeight;
         }
     }, [currentMessage, messages]); // Triggers when currentMessage or messages change
-
-    useEffect(() => {
-        const fetchModels = async () => {
-            setModels(await getModels(preURL, apikey));
-        };
-        fetchModels();
-    }, [apikey]);
 
     const sendMessageToModel = async (updatedMessages) => {
         const assistantData = await sendRequest(preURL, currentModel, apikey, updatedMessages[currentChat]);
@@ -182,7 +180,6 @@ function App() {
         setMessages(updatedMessages);
         localStorage.setItem('messages', JSON.stringify(updatedMessages));
     };
-
 
     const handleKeyDown = (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -220,11 +217,10 @@ function App() {
                 messages={messages}
                 chatChange={handleChatChange}
                 handleSettingChange={deleteChats}
+                handleDelete={deleteChats}
             />
 
-            <div className="chatbox" id="chatbox">
-
-            </div>
+            <div className="chatbox" id="chatbox"></div>
 
             <div className="inputBox">
                 <div>
@@ -232,12 +228,11 @@ function App() {
                               value={currentMessage}
                               onKeyDown={handleKeyDown}
                               onChange={(event) => {
-                                      setCurrentMessage(event.target.value);
-                                      const input = event.target;
-                                      input.style.height = 'auto';
-                                      input.style.height = `calc(${input.scrollHeight}px - 1em)`;
-                                    }
-                                }
+                                  setCurrentMessage(event.target.value);
+                                  const input = event.target;
+                                  input.style.height = 'auto';
+                                  input.style.height = `calc(${input.scrollHeight}px - 1em)`;
+                              }}
                               onInput={(event) => {
                                   const input = event.target;
                                   input.style.height = 'auto';
@@ -251,9 +246,7 @@ function App() {
                             sendMessage();
                             const input = document.getElementById("input");
                             input.style.height = `calc(${input.scrollHeight}px - 1em)`;
-                        }}
-                    >Send
-                    </button>
+                        }}>Send</button>
                 </div>
             </div>
         </div>
