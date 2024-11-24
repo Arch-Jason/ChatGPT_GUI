@@ -4,6 +4,7 @@ import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
+import { InlineMath, BlockMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import 'bootstrap/dist/css/bootstrap.css';
 import { getModels } from "./utils/getModels";
@@ -80,7 +81,7 @@ function App() {
     const currentChat = getCurrentChat();
 
     const sendMessage = async () => {
-        setCurrentMessage(escapeHtml(currentMessage));
+        setCurrentMessage(processMessages(currentMessage));
         if (currentMessage.trim()) {
             const newMessage = { "role": "user", "content": currentMessage };
             const updatedMessages = { ...messages };
@@ -125,16 +126,12 @@ function App() {
 
         // Log the assistant's response
         console.log("Assistant Response:", assistantData.choices[0].message.content);
-
-        const formattedMessage = assistantData.choices[0].message.content
-            .replace(/\$(.+?)\$/g, (_, formula) => `\\(${formula}\\)`)
-            .replace(/\$\$(.+?)\$\$/g, (_, formula) => `$$${formula}$$`);
-
         // Check if the message contains an image (for DALL-E or other image models)
         if (currentModel === "dall-e-2" || currentModel === "dall-e-3") {
             updatedMessages[currentChat].push({ "role": "assistant", "content": `![Generated Image](${assistantData.data[0].url})` });
         } else {
-            updatedMessages[currentChat].push({ "role": "assistant", "content": formattedMessage });
+            const processedMessages = processMessages(assistantData.choices[0].message.content);
+            updatedMessages[currentChat].push({ "role": "assistant", "content": processedMessages });
         }
 
         setMessages(updatedMessages);
@@ -157,13 +154,17 @@ function App() {
         // Update currentChat dynamically
     };
 
-    const escapeHtml = (unsafe) => {
+    const processMessages = (unsafe) => {
         return unsafe
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(/'/g, "&#039;")
+            .replace(/\\\(/g, "$")   // 将 \(...\) 转换为 $...$
+            .replace(/\\\)/g, "$")   // 同理
+            .replace(/\\\[/g, "$$")  // 将 \[...\] 转换为 $$...$$
+            .replace(/\\\]/g, "$$"); // 同理
     };
 
     return (
@@ -186,7 +187,17 @@ function App() {
                             remarkPlugins={[remarkMath, remarkGfm]}
                             rehypePlugins={[rehypeKatex]}
                             components={{
-                                code: CodeBlock.code  // 这里我们直接传递 CodeBlock 的 code 方法
+                                code: CodeBlock.code,
+                                math: ({ value }) => (
+                                    <div className="katex-block">
+                                        <BlockMath>{value}</BlockMath>
+                                    </div>
+                                ),
+                                inlineMath: ({ value }) => (
+                                    <span className="katex-inline">
+                                      <InlineMath>{value}</InlineMath>
+                                    </span>
+                                )
                             }}
                         >
                             {message.content}
@@ -200,7 +211,13 @@ function App() {
                     <textarea id={"input"}
                               value={currentMessage}
                               onKeyDown={handleKeyDown}
-                              onChange={(event) => setCurrentMessage(event.target.value)}
+                              onChange={(event) => {
+                                      setCurrentMessage(event.target.value);
+                                      const input = event.target;
+                                      input.style.height = 'auto';
+                                      input.style.height = `calc(${input.scrollHeight}px - 1em)`;
+                                    }
+                                }
                               onInput={(event) => {
                                   const input = event.target;
                                   input.style.height = 'auto';

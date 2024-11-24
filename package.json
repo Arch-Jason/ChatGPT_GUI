@@ -21,6 +21,7 @@
     "react-bootstrap": "^2.10.5",
     "react-copy-to-clipboard": "^5.1.0",
     "react-dom": "^18.3.1",
+    "react-katex": "^3.0.1",
     "react-markdown": "^9.0.1",
     "react-mathjax2": "^0.0.2",
     "react-scripts": "5.0.1",
