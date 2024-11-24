@@ -16,8 +16,6 @@ import CopyToClipboard from 'react-copy-to-clipboard';
 import copy from 'copy-to-clipboard';
 import Cookies from "js-cookie";
 import ReactDOM from "react-dom/client";
-import { debounce } from 'lodash';
-
 
 const CodeBlock = {
     code({ node, inline, className, children, ...props }) {
@@ -167,8 +165,6 @@ function App() {
     const sendMessageToModel = async (updatedMessages) => {
         const assistantData = await sendRequest(preURL, currentModel, apikey, updatedMessages[currentChat]);
 
-        // Log the assistant's response
-        console.log("Assistant Response:", assistantData.choices[0].message.content);
         // Check if the message contains an image (for DALL-E or other image models)
         if (currentModel === "dall-e-2" || currentModel === "dall-e-3") {
             updatedMessages[currentChat].push({ "role": "assistant", "content": `![Generated Image](${assistantData.data[0].url})` });
