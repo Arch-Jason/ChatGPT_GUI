@@ -42,7 +42,6 @@ const CodeBlock = {
 }
 
 function App() {
-    const pageLoading = useRef(false);
     const [apikey, setApikey] = useState(Cookies.get('GPT_API_KEY') || "");
     const [preURL, setPreURL] = useState(Cookies.get('GPT_PRE_URL') || "");
     const [models, setModels] = useState([]);
@@ -59,19 +58,19 @@ function App() {
 
     useEffect(() => {
         if (apikey) {
-            Cookies.set('GPT_API_KEY', apikey);
+            Cookies.set('GPT_API_KEY', apikey, {expires: 365});
         }
     }, [apikey]);
 
     useEffect(() => {
         if (preURL) {
-            Cookies.set('GPT_PRE_URL', preURL);
+            Cookies.set('GPT_PRE_URL', preURL, {expires: 365});
         }
     }, [preURL]);
 
     useEffect(() => {
         if (currentModel) {
-            Cookies.set('GPT_CURRENT_MODEL', currentModel);
+            Cookies.set('GPT_CURRENT_MODEL', currentModel, {expires: 365});
         }
     }, [currentModel]);
 
@@ -108,7 +107,7 @@ function App() {
                             )
                         }}
                     >
-                        {message.content}
+                        {processMessages(message.content)}
                     </Markdown>
                 </div>
             ))
@@ -131,7 +130,6 @@ function App() {
     }
 
     const sendMessage = async () => {
-        setCurrentMessage(processMessages(currentMessage));
         if (currentMessage.trim()) {
             const newMessage = { role: "user", content: currentMessage };
             const updatedMessages = { ...messages };
@@ -169,8 +167,7 @@ function App() {
         if (currentModel === "dall-e-2" || currentModel === "dall-e-3") {
             updatedMessages[currentChat].push({ "role": "assistant", "content": `![Generated Image](${assistantData.data[0].url})` });
         } else {
-            const processedMessages = processMessages(assistantData.choices[0].message.content);
-            updatedMessages[currentChat].push({ "role": "assistant", "content": processedMessages });
+            updatedMessages[currentChat].push({ "role": "assistant", "content": assistantData.choices[0].message.content });
         }
 
         setMessages(updatedMessages);
@@ -193,8 +190,8 @@ function App() {
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;")
+            // .replace(/"/g, "&quot;")
+            // .replace(/'/g, "&#039;")
             .replace(/\\\(/g, "$")   // 将 \(...\) 转换为 $...$
             .replace(/\\\)/g, "$")   // 同理
             .replace(/\\\[/g, "$$")  // 将 \[...\] 转换为 $$...$$
