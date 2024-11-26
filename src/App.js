@@ -1,5 +1,5 @@
 import './App.css';
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
@@ -107,7 +107,7 @@ function App() {
                             )
                         }}
                     >
-                        {processMessages(message.content)}
+                        {message.content}
                     </Markdown>
                 </div>
             ))
@@ -139,10 +139,10 @@ function App() {
             }
 
             updatedMessages[currentChat].push(newMessage);
-            setMessages(updatedMessages); // Save the updated messages to state and localStorage
-            localStorage.setItem('messages', JSON.stringify(updatedMessages)); // Save to localStorage
+            setMessages(updatedMessages);
+            localStorage.setItem('messages', JSON.stringify(updatedMessages));
 
-            setCurrentMessage(""); // Clear the message input
+            setCurrentMessage("");
         }
     };
 
@@ -158,12 +158,11 @@ function App() {
         if (chatbox) {
             chatbox.scrollTop = chatbox.scrollHeight;
         }
-    }, [currentMessage, messages]); // Triggers when currentMessage or messages change
+    }, [currentMessage, messages]);
 
     const sendMessageToModel = async (updatedMessages) => {
         const assistantData = await sendRequest(preURL, currentModel, apikey, updatedMessages[currentChat]);
-
-        // Check if the message contains an image (for DALL-E or other image models)
+        console.log(assistantData.choices[0].message.content);
         if (currentModel === "dall-e-2" || currentModel === "dall-e-3") {
             updatedMessages[currentChat].push({ "role": "assistant", "content": `![Generated Image](${assistantData.data[0].url})` });
         } else {
@@ -185,19 +184,6 @@ function App() {
         setPreURL(preURL);
     };
 
-    const processMessages = (unsafe) => {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            // .replace(/"/g, "&quot;")
-            // .replace(/'/g, "&#039;")
-            .replace(/\\\(/g, "$")   // 将 \(...\) 转换为 $...$
-            .replace(/\\\)/g, "$")   // 同理
-            .replace(/\\\[/g, "$$")  // 将 \[...\] 转换为 $$...$$
-            .replace(/\\\]/g, "$$"); // 同理
-    };
-
     return (
         <div className="App">
             <Sidebar
@@ -217,7 +203,7 @@ function App() {
 
             <div className="inputBox">
                 <div>
-                    <textarea id={"input"}
+                    <textarea id="input"
                               value={currentMessage}
                               onKeyDown={handleKeyDown}
                               onChange={(event) => {
