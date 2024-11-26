@@ -102,12 +102,17 @@ function App() {
                             ),
                             inlineMath: ({ value }) => (
                                 <span className="katex-inline">
-                                    <InlineMath>{value}</InlineMath>
-                                </span>
+                                   <InlineMath>{value}</InlineMath>
+                               </span>
                             )
                         }}
                     >
-                        {message.content}
+                        {message.content
+                            .replace(/\\\(/g, "$")   // 转换 \(...\) 为 $...$
+                            .replace(/\\\)/g, "$")   // 同理
+                            .replace(/\\\[/g, "$$")  // 转换 \[...\] 为 $$...$$
+                            .replace(/\\\]/g, "$$") // 同理
+                        }
                     </Markdown>
                 </div>
             ))
