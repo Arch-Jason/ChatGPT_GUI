@@ -147,6 +147,8 @@ function App() {
         send();
         const box = document.querySelector('#chatbox');
         if (box) box.scrollTop = box.scrollHeight;
+        const input = document.getElementById('input');
+        if (input) input.style.height = '';
     }, [messages, currentChat]);
 
     const sendMessageToModel = async (updatedMessages) => {
@@ -218,8 +220,8 @@ function App() {
                             input.style.height = 'auto';
                             input.style.height = `calc(${input.scrollHeight}px - 1em)`;
                             const chatbox = document.querySelector("#chatbox");
-                            chatbox.style.height = `calc(90vh - ${input.scrollHeight}px)`;
-                            chatbox.style.paddingBottom = `calc(${input.scrollHeight}px - 6vh)`;
+                            chatbox.style.height = "";
+                            chatbox.style.paddingBottom = "";
                         }}
                     />
                     <button onClick={() => { sendMessage(); }}>
