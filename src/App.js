@@ -32,7 +32,9 @@ const CodeBlock = {
                     <CopyToClipboard text={text} onCopy={handleCopy}>
                         <button>Copy</button>
                     </CopyToClipboard>
-                    <SyntaxHighlighter style={solarizedlight} language={match[1]} PreTag="div" children={text} {...props} />
+                    <SyntaxHighlighter style={solarizedlight} language={match[1]} PreTag="div" {...props}>
+                        {text}
+                    </SyntaxHighlighter>
                 </div>
             )
             : (
@@ -48,8 +50,8 @@ function App() {
     const [currentMessage, setCurrentMessage] = useState("");
     const [currentModel, setCurrentModel] = useState(Cookies.get('GPT_CURRENT_MODEL') || "gpt-3.5-turbo");
     const [messages, setMessages] = useState(() => {
-        let storedMessages = localStorage.getItem('messages');
-        return storedMessages ? JSON.parse(storedMessages) : {};
+        const stored = localStorage.getItem('messages');
+        return stored ? JSON.parse(stored) : {};
     });
     const [currentChat, setCurrentChat] = useState(() => {
         const keys = Object.keys(messages);
@@ -57,39 +59,33 @@ function App() {
     });
 
     useEffect(() => {
-        if (apikey) {
-            Cookies.set('GPT_API_KEY', apikey, {expires: 365});
-        }
+        if (apikey) Cookies.set('GPT_API_KEY', apikey, { expires: 365 });
     }, [apikey]);
 
     useEffect(() => {
-        if (preURL) {
-            Cookies.set('GPT_PRE_URL', preURL, {expires: 365});
-        }
+        if (preURL) Cookies.set('GPT_PRE_URL', preURL, { expires: 365 });
     }, [preURL]);
 
     useEffect(() => {
-        if (currentModel) {
-            Cookies.set('GPT_CURRENT_MODEL', currentModel, {expires: 365});
-        }
+        if (currentModel) Cookies.set('GPT_CURRENT_MODEL', currentModel, { expires: 365 });
     }, [currentModel]);
 
     useEffect(() => {
-        const fetchModels = async () => {
-            setModels(await getModels(preURL, apikey));
-        };
-        fetchModels();
-    }, [apikey]);
+        (async () => {
+            const ms = await getModels(preURL, apikey);
+            setModels(ms);
+        })();
+    }, [preURL, apikey]);
 
     useEffect(() => {
         renderChatboxRoot(messages, currentChat);
     }, [messages, currentChat]);
 
-    const renderChatboxRoot = (messages, currentChat) => {
-        const chatboxRoot = ReactDOM.createRoot(document.getElementById("chatbox"));
-        chatboxRoot.render(
-            messages[currentChat]?.map((message, index) => (
-                <div className="message" id={message.role} key={`${message.role}-${index}`}>
+    const renderChatboxRoot = (msgs, chat) => {
+        const root = ReactDOM.createRoot(document.getElementById("chatbox"));
+        root.render(
+            msgs[chat]?.map((message, idx) => (
+                <div className="message" id={message.role} key={`${message.role}-${idx}`}>          
                     <Markdown
                         remarkPlugins={[remarkMath, remarkGfm]}
                         rehypePlugins={[rehypeKatex]}
@@ -102,17 +98,16 @@ function App() {
                             ),
                             inlineMath: ({ value }) => (
                                 <span className="katex-inline">
-                                   <InlineMath>{value}</InlineMath>
-                               </span>
+                                    <InlineMath>{value}</InlineMath>
+                                </span>
                             )
                         }}
                     >
                         {message.content
-                            .replace(/\\\(/g, "$")   // 转换 \(...\) 为 $...$
-                            .replace(/\\\)/g, "$")   // 同理
-                            .replace(/\\\[/g, "$$")  // 转换 \[...\] 为 $$...$$
-                            .replace(/\\\]/g, "$$") // 同理
-                        }
+                            .replace(/\\\(/g, "$" )
+                            .replace(/\\\)/g, "$" )
+                            .replace(/\\\[/g, "$$" )
+                            .replace(/\\\]/g, "$$" )}
                     </Markdown>
                 </div>
             ))
@@ -122,71 +117,74 @@ function App() {
     const handleChatChange = (chat) => {
         setCurrentChat(chat);
         if (!messages[chat]) {
-            setMessages((prevMessages) => ({
-                ...prevMessages,
-                [chat]: []
-            }));
+            setMessages(prev => ({ ...prev, [chat]: [] }));
         }
     };
 
     const deleteChats = () => {
         localStorage.removeItem('messages');
         setMessages({});
-    }
+    };
 
-    const sendMessage = async () => {
-        if (currentMessage.trim()) {
-            const newMessage = { role: "user", content: currentMessage };
-            const updatedMessages = { ...messages };
-
-            if (!updatedMessages[currentChat]) {
-                updatedMessages[currentChat] = [];
-            }
-
-            updatedMessages[currentChat].push(newMessage);
-            setMessages(updatedMessages);
-            localStorage.setItem('messages', JSON.stringify(updatedMessages));
-
-            setCurrentMessage("");
-        }
+    const sendMessage = () => {
+        if (!currentMessage.trim()) return;
+        const newMsg = { role: "user", content: currentMessage };
+        const updated = { ...messages };
+        if (!updated[currentChat]) updated[currentChat] = [];
+        updated[currentChat].push(newMsg);
+        setMessages(updated);
+        localStorage.setItem('messages', JSON.stringify(updated));
+        setCurrentMessage("");
     };
 
     useEffect(() => {
         const send = async () => {
-            const updatedMessages = { ...messages };
-            if (updatedMessages[currentChat]?.length > 0 && updatedMessages[currentChat][updatedMessages[currentChat].length - 1].role === "user") {
-                await sendMessageToModel(updatedMessages);
+            const chatMsgs = messages[currentChat];
+            if (chatMsgs?.length && chatMsgs[chatMsgs.length - 1].role === "user") {
+                await sendMessageToModel({ ...messages });
             }
         };
         send();
-        const chatbox = document.querySelector('#chatbox');
-        if (chatbox) {
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
-    }, [currentMessage, messages]);
+        const box = document.querySelector('#chatbox');
+        if (box) box.scrollTop = box.scrollHeight;
+    }, [messages, currentChat]);
 
     const sendMessageToModel = async (updatedMessages) => {
-        const assistantData = await sendRequest(preURL, currentModel, apikey, updatedMessages[currentChat]);
-        console.log(assistantData.choices[0].message.content);
+        const chatMsgs = updatedMessages[currentChat];
+        // 图像生成模型
         if (currentModel === "dall-e-2" || currentModel === "dall-e-3") {
-            updatedMessages[currentChat].push({ "role": "assistant", "content": `![Generated Image](${assistantData.data[0].url})` });
+            const assistantData = await sendRequest(preURL, currentModel, apikey, chatMsgs);
+            updatedMessages[currentChat].push({
+                role: "assistant",
+                content: `![Generated Image](${assistantData.data[0].url})`
+            });
+            setMessages({ ...updatedMessages });
+            localStorage.setItem('messages', JSON.stringify(updatedMessages));
         } else {
-            updatedMessages[currentChat].push({ "role": "assistant", "content": assistantData.choices[0].message.content });
-        }
+            // 流式聊天模型
+            updatedMessages[currentChat].push({ role: "assistant", content: "" });
+            setMessages({ ...updatedMessages });
+            localStorage.setItem('messages', JSON.stringify(updatedMessages));
 
-        setMessages(updatedMessages);
-        localStorage.setItem('messages', JSON.stringify(updatedMessages));
+            await sendRequest(preURL, currentModel, apikey, chatMsgs, (delta) => {
+                const msgs = { ...updatedMessages };
+                const i = msgs[currentChat].length - 1;
+                msgs[currentChat][i].content += delta;
+                setMessages(msgs);
+                localStorage.setItem('messages', JSON.stringify(msgs));
+            });
+        }
     };
 
-    const handleKeyDown = (event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    const handleKeyDown = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             sendMessage();
         }
     };
 
-    const handleSettingChange = (preURL, apikey) => {
-        setApikey(apikey);
-        setPreURL(preURL);
+    const handleSettingChange = (url, key) => {
+        setPreURL(url);
+        setApikey(key);
     };
 
     return (
@@ -203,34 +201,30 @@ function App() {
                 handleSettingChange={deleteChats}
                 handleDelete={deleteChats}
             />
-
             <div className="chatbox" id="chatbox"></div>
-
             <div className="inputBox">
                 <div>
-                    <textarea id="input"
-                              value={currentMessage}
-                              onKeyDown={handleKeyDown}
-                              onChange={(event) => {
-                                  setCurrentMessage(event.target.value);
-                                  const input = event.target;
-                                  input.style.height = 'auto';
-                                  input.style.height = `calc(${input.scrollHeight}px - 1em)`;
-                              }}
-                              onInput={(event) => {
-                                  const input = event.target;
-                                  input.style.height = 'auto';
-                                  input.style.height = `calc(${input.scrollHeight}px - 1em)`;
-                                  let chatbox = document.querySelector("#chatbox");
-                                  chatbox.style.height = `calc(90vh - ${input.scrollHeight}px)`;
-                                  chatbox.style.paddingBottom = `calc(${input.scrollHeight}px - 6vh)`;
-                              }} />
-                    <button
-                        onClick={() => {
-                            sendMessage();
-                            const input = document.getElementById("input");
+                    <textarea
+                        id="input"
+                        value={currentMessage}
+                        onKeyDown={handleKeyDown}
+                        onChange={(ev) => {
+                            setCurrentMessage(ev.target.value);
+                            ev.target.style.height = 'auto';
+                            ev.target.style.height = `calc(${ev.target.scrollHeight}px - 1em)`;
+                        }}
+                        onInput={(ev) => {
+                            const input = ev.target;
+                            input.style.height = 'auto';
                             input.style.height = `calc(${input.scrollHeight}px - 1em)`;
-                        }}>Send</button>
+                            const chatbox = document.querySelector("#chatbox");
+                            chatbox.style.height = `calc(90vh - ${input.scrollHeight}px)`;
+                            chatbox.style.paddingBottom = `calc(${input.scrollHeight}px - 6vh)`;
+                        }}
+                    />
+                    <button onClick={() => { sendMessage(); }}>
+                        Send
+                    </button>
                 </div>
             </div>
         </div>
