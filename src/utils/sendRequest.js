@@ -37,6 +37,7 @@ export async function sendRequest(
   }
 
   // 聊天模型分支：启用流式输出
+  chatMessages = chatMessages.slice(0, -1);
   const reqURL = currentURL + "/v1/chat/completions";
   const payload = JSON.stringify({
     model: model,
